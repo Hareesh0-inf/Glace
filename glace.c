@@ -158,7 +158,7 @@ void editorDrawRows(struct abuf *ab) {
     if (y == E.screenrows / 3) {
       char welcome[80];
       int welcomelen = snprintf(welcome, sizeof(welcome),
-        "Kilo editor -- version %s", GLACE_VERSION);
+        "Glace editor -- version %s", GLACE_VERSION);
       if (welcomelen > E.screencols) welcomelen = E.screencols;
       int padding = (E.screencols - welcomelen) / 2;
       if (padding) {
