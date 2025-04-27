@@ -53,7 +53,7 @@ Mkfile.old
 dkms.conf
 
 #vscodde
-.vscode/
+.vscode
 
 #output
 output/
