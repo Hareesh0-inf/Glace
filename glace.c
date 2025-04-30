@@ -15,6 +15,7 @@
 #include <ctype.h>
 #include <time.h>
 #include <sys/types.h>
+#include <python3.12/Python.h>
 
 /*** defines ***/
 #define CTRL_KEY(k) ((k) & 0x1f)
@@ -639,6 +640,37 @@ void initEditor() {
   E.statusmsg_time = 0;
   if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
   E.screenrows -= 2;
+
+  Py_Initialize();
+
+  PyObject *pname = PyUnicode_DecodeFSDefault("AIUtils/suggestion.py");
+  PyObject *pmodule = PyImport_Import(pname);
+  Py_DecRef(pname);
+
+  if (pmodule !=NULL){
+    PyObject *pfunc = PyObject_GetAttrString(pmodule, "suggestion");
+    if(pfunc && PyCallable_Check(pfunc))
+    {
+      PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString("from c"));
+
+      PyObject *res = PyObject_CallObject(pfunc, pArgs);
+      Py_DECREF(pArgs);
+
+      if(res != NULL){
+        printf("The result is: %s\n",PyUnicode_AsUTF8(res));
+        Py_DECREF(res);
+      } else {
+        printf("Somethings wrong res is NULL");
+      }
+    } else {
+      printf("The function is not callable");
+    }
+    Py_DECREF(pfunc);
+    Py_XDECREF(pmodule); 
+  } else {
+    PyErr_Print();
+    fprintf(stderr, "Module error");
+  }
 }
 
 /***File I/O ***/
