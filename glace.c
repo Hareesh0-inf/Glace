@@ -377,6 +377,7 @@ void editorProcessKeypress() {
       quit_times--;
       return;
     }
+      Py_Finalize();
       write(STDOUT_FILENO, "\x1b[2J", 4);
       write(STDOUT_FILENO, "\x1b[H", 3);
       exit(0);
@@ -422,6 +423,11 @@ void editorProcessKeypress() {
     case ARROW_RIGHT:
       editorMoveCursor(c);
       break;
+    
+    case CTRL_KEY('g'):
+      getSuggestion();
+      break;
+
     case CTRL_KEY('l'):
     case '\x1b':
       break;
@@ -624,6 +630,38 @@ void editorFind() {
     E.rowoff = saved_rowoff;
   }
 }
+
+/*** AI Functions */
+void getSuggestion(){
+  PyObject *pname = PyUnicode_DecodeFSDefault("suggestion");
+  PyObject *pmodule = PyImport_Import(pname);
+  Py_DECREF(pname);
+
+  if (pmodule != NULL) {
+    PyObject *pfunc = PyObject_GetAttrString(pmodule, "suggestion");
+    if (pfunc && PyCallable_Check(pfunc)) {
+      PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString("from c"));
+
+      PyObject *res = PyObject_CallObject(pfunc, pArgs);
+      Py_DECREF(pArgs);
+
+      if (res != NULL) {
+        editorSetStatusMessage("Suggestion: %s", PyUnicode_AsUTF8(res));
+        Py_DECREF(res);
+      } else {
+        editorSetStatusMessage("Error: Failed to get suggestion");
+      }
+    } else {
+      editorSetStatusMessage("Error: Function not callable");
+    }
+    Py_XDECREF(pfunc);
+    Py_DECREF(pmodule);
+  } else {
+    PyErr_Print();
+    editorSetStatusMessage("Error: Failed to load module");
+  }
+
+}
 /*** init ***/
 
 void initEditor() {
@@ -643,34 +681,9 @@ void initEditor() {
 
   Py_Initialize();
 
-  PyObject *pname = PyUnicode_DecodeFSDefault("AIUtils/suggestion.py");
-  PyObject *pmodule = PyImport_Import(pname);
-  Py_DecRef(pname);
+  PyRun_SimpleString("import sys");
+  PyRun_SimpleString("sys.path.append(\"/home/sp3ctre/proj/Glace/AIUtils\")"); //use your working diectory
 
-  if (pmodule !=NULL){
-    PyObject *pfunc = PyObject_GetAttrString(pmodule, "suggestion");
-    if(pfunc && PyCallable_Check(pfunc))
-    {
-      PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString("from c"));
-
-      PyObject *res = PyObject_CallObject(pfunc, pArgs);
-      Py_DECREF(pArgs);
-
-      if(res != NULL){
-        printf("The result is: %s\n",PyUnicode_AsUTF8(res));
-        Py_DECREF(res);
-      } else {
-        printf("Somethings wrong res is NULL");
-      }
-    } else {
-      printf("The function is not callable");
-    }
-    Py_DECREF(pfunc);
-    Py_XDECREF(pmodule); 
-  } else {
-    PyErr_Print();
-    fprintf(stderr, "Module error");
-  }
 }
 
 /***File I/O ***/
