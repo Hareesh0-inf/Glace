@@ -39,6 +39,7 @@ enum editorKey {
 void editorSetStatusMessage(const char *fmt, ...);
 void editorRefreshScreen();
 char *editorPrompt(char *prompt, void (*callback)(char *, int));
+char *editorRowsToString(int *buflen);
 
 /*** data ***/
 typedef struct erow {
@@ -425,7 +426,7 @@ void editorProcessKeypress() {
       break;
     
     case CTRL_KEY('g'):
-      getSuggestion();
+      handleAIfunc();
       break;
 
     case CTRL_KEY('l'):
@@ -610,7 +611,7 @@ void editorFindCallback(char *query, int key) {
       last_match = current;
       E.cy = current;
       E.cx = editorRowRxToCx(row, match - row->render);
-      E.rowoff = E.numrows;
+      E.rowoff = E.cy;
       break;
     }
   }
@@ -620,8 +621,10 @@ void editorFind() {
   int saved_cy = E.cy;
   int saved_coloff = E.coloff;
   int saved_rowoff = E.rowoff;
-  char *query = editorPrompt("Search: %s (Use ESC/Arrows/Enter)",
-    editorFindCallback);  if (query) {
+
+  char *query = editorPrompt("Search: %s (Use ESC/Arrows/Enter)", editorFindCallback);
+
+  if (query) {
     free(query);
   } else {
     E.cx = saved_cx;
@@ -629,9 +632,21 @@ void editorFind() {
     E.coloff = saved_coloff;
     E.rowoff = saved_rowoff;
   }
+
+  editorFindCallback(NULL, '\x1b');
 }
 
 /*** AI Functions */
+void handleAIfunc(){
+  char *a = editorPrompt("enter 'a' for suggestion", NULL);
+  switch (a[0]){
+    case 'a':
+      getSuggestion();
+      break;
+    default:
+      editorSetStatusMessage("Re-check the available options and try again");
+  }
+}
 void getSuggestion(){
   PyObject *pname = PyUnicode_DecodeFSDefault("suggestion");
   PyObject *pmodule = PyImport_Import(pname);
@@ -640,10 +655,12 @@ void getSuggestion(){
   if (pmodule != NULL) {
     PyObject *pfunc = PyObject_GetAttrString(pmodule, "suggestion");
     if (pfunc && PyCallable_Check(pfunc)) {
-      PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString("from c"));
-
+      int len;
+      char *rows = editorRowsToString(&len);
+      PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString(rows));
       PyObject *res = PyObject_CallObject(pfunc, pArgs);
       Py_DECREF(pArgs);
+      free(rows);
 
       if (res != NULL) {
         editorSetStatusMessage("Suggestion: %s", PyUnicode_AsUTF8(res));
