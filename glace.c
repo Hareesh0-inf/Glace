@@ -41,6 +41,9 @@ void editorRefreshScreen();
 char *editorPrompt(char *prompt, void (*callback)(char *, int));
 char *editorRowsToString(int *buflen);
 
+void getSuggestion();
+void CorrectGrammer();
+
 /*** data ***/
 typedef struct erow {
   int size;
@@ -636,17 +639,21 @@ void editorFind() {
   editorFindCallback(NULL, '\x1b');
 }
 
-/*** AI Functions */
+/* AI Functions */
 void handleAIfunc(){
-  char *a = editorPrompt("enter 'a' for suggestion", NULL);
+  char *a = editorPrompt("enter 'a' for suggestion, enter 'b' for grammar correction ", NULL);
   switch (a[0]){
     case 'a':
       getSuggestion();
+      break;
+    case 'b':
+      // CorrectGrammer();
       break;
     default:
       editorSetStatusMessage("Re-check the available options and try again");
   }
 }
+
 void getSuggestion(){
   PyObject *pname = PyUnicode_DecodeFSDefault("suggestion");
   PyObject *pmodule = PyImport_Import(pname);
@@ -666,9 +673,11 @@ void getSuggestion(){
         editorSetStatusMessage("Suggestion: %s", PyUnicode_AsUTF8(res));
         Py_DECREF(res);
       } else {
+        PyErr_Print();
         editorSetStatusMessage("Error: Failed to get suggestion");
       }
     } else {
+      PyErr_Print();
       editorSetStatusMessage("Error: Function not callable");
     }
     Py_XDECREF(pfunc);
@@ -677,8 +686,47 @@ void getSuggestion(){
     PyErr_Print();
     editorSetStatusMessage("Error: Failed to load module");
   }
-
 }
+
+// void CorrectGrammer(){
+//   PyObject *pname = PyUnicode_DecodeFSDefault("suggestion");
+//   PyObject *pmodule = PyImport_Import(pname);
+//   Py_DECREF(pname);
+
+//   if (pmodule != NULL) {
+//     PyObject *pfunc = PyObject_GetAttrString(pmodule, "correct_grammer");
+//     if (pfunc && PyCallable_Check(pfunc)) {
+//       int len;
+//       char *rows = editorRowsToString(&len);
+//       PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString(rows));
+//       PyObject *res = PyObject_CallObject(pfunc, pArgs);
+//       Py_DECREF(pArgs);
+//       free(rows);
+
+//       if (res != NULL) {
+//         int i;
+//         for (i = 0; i < E.numrows; i++) {
+//           editorFreeRow(&E.row[i]);
+//         }
+//         free(E.row);
+//         E.row = NULL;
+//         E.numrows = 0;
+//           editorSetStatusMessage("File updated with corrected grammar");
+//         } else {
+//           editorSetStatusMessage("Error: Unable to write to file");
+//         }
+//         Py_DECREF(res);
+//     } else {
+//       PyErr_Print();
+//       editorSetStatusMessage("Error: Function not callable");
+//     }
+//     Py_XDECREF(pfunc);
+//     Py_DECREF(pmodule);
+//   } else {
+//     PyErr_Print();
+//     editorSetStatusMessage("Error: Failed to load module");
+//   }
+// }
 /*** init ***/
 
 void initEditor() {
@@ -704,6 +752,8 @@ void initEditor() {
 }
 
 /***File I/O ***/
+
+
 
 char *editorRowsToString(int *buflen) {
   int totlen = 0;
