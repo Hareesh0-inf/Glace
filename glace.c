@@ -647,7 +647,7 @@ void handleAIfunc(){
       getSuggestion();
       break;
     case 'b':
-      // CorrectGrammer();
+      CorrectGrammer();
       break;
     default:
       editorSetStatusMessage("Re-check the available options and try again");
@@ -688,45 +688,76 @@ void getSuggestion(){
   }
 }
 
-// void CorrectGrammer(){
-//   PyObject *pname = PyUnicode_DecodeFSDefault("suggestion");
-//   PyObject *pmodule = PyImport_Import(pname);
-//   Py_DECREF(pname);
+void CorrectGrammer(){
+  PyObject *pname = PyUnicode_DecodeFSDefault("suggestion");
+  PyObject *pmodule = PyImport_Import(pname);
+  Py_DECREF(pname);
 
-//   if (pmodule != NULL) {
-//     PyObject *pfunc = PyObject_GetAttrString(pmodule, "correct_grammer");
-//     if (pfunc && PyCallable_Check(pfunc)) {
-//       int len;
-//       char *rows = editorRowsToString(&len);
-//       PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString(rows));
-//       PyObject *res = PyObject_CallObject(pfunc, pArgs);
-//       Py_DECREF(pArgs);
-//       free(rows);
+  if (pmodule != NULL) {
+    PyObject *pfunc = PyObject_GetAttrString(pmodule, "correct_grammer");
+    if (pfunc && PyCallable_Check(pfunc)) {
+      int len;
+      char *rows = editorRowsToString(&len);
+      PyObject *pArgs = PyTuple_Pack(1, PyUnicode_FromString(rows));
+      PyObject *res = PyObject_CallObject(pfunc, pArgs);
+      Py_DECREF(pArgs);
+      free(rows);
 
-//       if (res != NULL) {
-//         int i;
-//         for (i = 0; i < E.numrows; i++) {
-//           editorFreeRow(&E.row[i]);
-//         }
-//         free(E.row);
-//         E.row = NULL;
-//         E.numrows = 0;
-//           editorSetStatusMessage("File updated with corrected grammar");
-//         } else {
-//           editorSetStatusMessage("Error: Unable to write to file");
-//         }
-//         Py_DECREF(res);
-//     } else {
-//       PyErr_Print();
-//       editorSetStatusMessage("Error: Function not callable");
-//     }
-//     Py_XDECREF(pfunc);
-//     Py_DECREF(pmodule);
-//   } else {
-//     PyErr_Print();
-//     editorSetStatusMessage("Error: Failed to load module");
-//   }
-// }
+      if (res != NULL) {
+          FILE *file_pointer = fopen(E.filename, "w");
+          if (file_pointer) {
+          const char *corrected = PyUnicode_AsUTF8(res);
+          if (corrected) {
+            int len_c = strlen(corrected);
+            E.dirty = 1;
+            int fd = open(E.filename, O_RDWR, 0644);
+            if (fd != -1) {
+              if (ftruncate(fd, len) != -1) {
+                if (write(fd, corrected, len_c) == len_c) {
+                  close(fd);
+                }
+              }
+            }
+            fclose(file_pointer);
+            for (int i = 0; i < E.numrows; i++) {
+              editorFreeRow(&E.row[i]);
+            }
+            free(E.row);
+            E.row = NULL;
+            E.numrows = 0;
+            char *corrected_dup = strdup(corrected);
+            char *line = strtok(corrected_dup, "\n");
+            while (line) {
+              editorInsertRow(E.numrows, line, strlen(line));
+              line = strtok(NULL, "\n");
+            }
+            free(corrected_dup);
+            editorRefreshScreen();
+            editorSetStatusMessage("File updated with corrected grammar");
+          } else {
+            editorSetStatusMessage("Error: Unable to get corrected text");
+          }
+          } else {
+            editorSetStatusMessage("Error: Unable to write to file");
+            
+          }
+          Py_DECREF(res);
+    
+      } else {
+          PyErr_Print();
+          editorSetStatusMessage("Error: Failed to get correction");
+      }
+    } else {
+      PyErr_Print();
+      editorSetStatusMessage("Error: Function not callable");
+    }
+    Py_XDECREF(pfunc);
+    Py_DECREF(pmodule);
+  } else {
+    PyErr_Print();
+    editorSetStatusMessage("Error: Failed to load module");
+  }
+}
 /*** init ***/
 
 void initEditor() {
@@ -752,8 +783,6 @@ void initEditor() {
 }
 
 /***File I/O ***/
-
-
 
 char *editorRowsToString(int *buflen) {
   int totlen = 0;
