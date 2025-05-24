@@ -778,6 +778,8 @@ void initEditor() {
   Py_Initialize();
 
   PyRun_SimpleString("import sys");
+  PyRun_SimpleString("from dotenv import load_dotenv");
+  PyRun_SimpleString("from google import genai");
   
   PyRun_SimpleString("sys.path.append(\"/home/sp3ctre/proj/Glace/AIUtils\")"); //use your working diectory
 
