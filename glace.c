@@ -721,7 +721,7 @@ void CorrectGrammer(){
             fclose(file_pointer);
             for (int i = 0; i < E.numrows; i++) {
               editorFreeRow(&E.row[i]);
-            }
+            } 
             free(E.row);
             E.row = NULL;
             E.numrows = 0;
@@ -778,6 +778,7 @@ void initEditor() {
   Py_Initialize();
 
   PyRun_SimpleString("import sys");
+  
   PyRun_SimpleString("sys.path.append(\"/home/sp3ctre/proj/Glace/AIUtils\")"); //use your working diectory
 
 }

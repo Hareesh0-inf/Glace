@@ -61,7 +61,13 @@ build/
 glace
 test.txt
 
-#temp
+#Python
 __pycache__
+venv
+
+#Secrets
+.env
+
+#temp
 To_do.md
 test*
